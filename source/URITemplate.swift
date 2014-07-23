@@ -14,13 +14,19 @@ import Foundation
 //    CFStringBuiltInEncodings.UTF8.toRaw())
 
 enum URITemplateError {
-    case MalformedPctEncodedInLiterals
+    case MalformedPctEncodedInLiteral
+    case NonLiteralsCharacterFoundInLiteral
+    case ExpressionEndedWithoutClosing
+    case NonExpressionFound
+    case InvalidOperator
 }
+
+let URITemplateSyntaxErrorsKey = "SyntaxErrors"
 
 class URITemplate {
     enum State {
-        case ScanningLiterals
-        case ScanningExpressions
+        case ScanningLiteral
+        case ScanningExpression
     }
 
     enum BehaviorAllow {
@@ -53,13 +59,14 @@ class URITemplate {
             static let HEXDIG = "0123456789abcdefABCDEF"
             static let RESERVED = ":/?#[]@!$&'()*+,;="
             static let UNRESERVED = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~" // 66
+            static let VARCHAR = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" // exclude pct-encoded
         }
 
         let BehaviorTable = ClassVariable.BehaviorTable
         let HEXDIG = ClassVariable.HEXDIG
         let RESERVED = ClassVariable.RESERVED
         let UNRESERVED = ClassVariable.UNRESERVED
-
+        let VARCHAR = ClassVariable.VARCHAR
 
         // Pct-encoded isn't taken into account
         func appendLiteralCharacter(character: Character, toString: String) -> String {
@@ -82,16 +89,62 @@ class URITemplate {
             return result
         }
 
-        var state: State = .ScanningLiterals
+        func findOperatorInExpression(expression: String) -> (operator: Character?, error: URITemplateError?) {
+            var count = countElements(expression)
+
+            if count == 0 {
+                return (nil, URITemplateError.InvalidOperator)
+            }
+
+            var operator: Character? = nil
+            var error: URITemplateError? = nil
+            var startCharacher = expression[expression.startIndex]
+            if startCharacher == "%" {
+                if count < 3 {
+                    return (nil, URITemplateError.InvalidOperator)
+                }
+
+                var c1 = expression[advance(expression.startIndex, 1)]
+                var c2 = expression[advance(expression.startIndex, 2)]
+                if !find(HEXDIG, c1) {
+                    return (nil, URITemplateError.InvalidOperator)
+                }
+                if !find(HEXDIG, c2) {
+                    return (nil, URITemplateError.InvalidOperator)
+                }
+                var str = "%" + c1 + c2
+                str = str.stringByReplacingPercentEscapesUsingEncoding(NSUTF8StringEncoding)
+                operator = str[str.startIndex]
+            } else {
+                operator = startCharacher
+            }
+
+            if operator {
+                if !find(VARCHAR, operator!) {
+                    return (nil, URITemplateError.InvalidOperator)
+                }
+
+                if !BehaviorTable[String(operator!)] {
+                    return (nil, URITemplateError.InvalidOperator)
+                }
+            }
+
+            return (operator, error)
+        }
+
+        var state: State = .ScanningLiteral
         var result = ""
         var pctEncoded = ""
-        var errors = Dictionary<Int, URITemplateError>()
+        var expression = ""
+        var expressionCount = 0
+        var syntaxErrors = Array<(URITemplateError, Int)>()
 
         for (index, c) in enumerate(template) {
             switch state {
-            case .ScanningLiterals:
+            case .ScanningLiteral:
                 if c == "(" {
-                    state = .ScanningExpressions
+                    state = .ScanningExpression
+                    ++expressionCount
 
                 } else if (countElements(pctEncoded) > 0) {
                     switch countElements(pctEncoded) {
@@ -99,10 +152,10 @@ class URITemplate {
                         if find(HEXDIG, c) {
                             pctEncoded += c
                         } else {
-                            errors[index] = URITemplateError.MalformedPctEncodedInLiterals
+                            syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
                             result = appendLiteralString(pctEncoded, result)
                             result = appendLiteralCharacter(c, result)
-                            state = .ScanningLiterals
+                            state = .ScanningLiteral
                             pctEncoded = ""
                         }
 
@@ -110,14 +163,14 @@ class URITemplate {
                         if find(HEXDIG, c) {
                             pctEncoded += c
                             result += pctEncoded
-                            state = .ScanningLiterals
+                            state = .ScanningLiteral
                             pctEncoded = ""
 
                         } else {
-                            errors[index] = URITemplateError.MalformedPctEncodedInLiterals
+                            syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
                             result = appendLiteralString(pctEncoded, result)
                             result = appendLiteralCharacter(c, result)
-                            state = .ScanningLiterals
+                            state = .ScanningLiteral
                             pctEncoded = ""
                         }
 
@@ -127,22 +180,51 @@ class URITemplate {
 
                 } else if c == "%" {
                     pctEncoded += c
-                    state = .ScanningLiterals
+                    state = .ScanningLiteral
 
                 } else if find(UNRESERVED, c) || find(RESERVED, c) {
                     result += c
 
                 } else {
-
+                    syntaxErrors += (URITemplateError.NonLiteralsCharacterFoundInLiteral, index)
+                    result += c
                 }
 
-            case .ScanningExpressions:
-                println("")
+            case .ScanningExpression:
+                if c == ")" {
+                    state = .ScanningLiteral
+                    // Process expression
+                    // ...
+                    var operator: String? = nil
+
+
+                } else {
+                    expression += c;
+                }
 
             default:
                 assert(false)
             } // switch
         }// for
+
+        // Handle ending
+        var endingIndex = countElements(template)
+        if state == .ScanningLiteral {
+            if countElements(pctEncoded) > 0 {
+                syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, endingIndex)
+                result = appendLiteralString(pctEncoded, result)
+            }
+
+        } else if (state == .ScanningExpression) {
+            syntaxErrors += (URITemplateError.ExpressionEndedWithoutClosing, endingIndex)
+            result = result + "(" + expression
+
+        } else {
+            assert(false);
+        }
+        if expressionCount == 0 {
+            syntaxErrors += (URITemplateError.NonExpressionFound, endingIndex)
+        }
 
         return result
     } // process
