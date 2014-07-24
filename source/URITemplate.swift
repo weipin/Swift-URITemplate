@@ -19,6 +19,7 @@ enum URITemplateError {
     case ExpressionEndedWithoutClosing
     case NonExpressionFound
     case InvalidOperator
+    case MalformedVarSpec
 }
 
 let URITemplateSyntaxErrorsKey = "SyntaxErrors"
@@ -27,6 +28,11 @@ class URITemplate {
     enum State {
         case ScanningLiteral
         case ScanningExpression
+    }
+
+    enum ExpressionState {
+        case ScanningVarName
+        case ScanningModifier
     }
 
     enum BehaviorAllow {
@@ -43,7 +49,7 @@ class URITemplate {
         var allow: BehaviorAllow
     }
 
-    class func process(template: String, values: AnyObject, error: NSErrorPointer) -> String {
+    class func process(template: String, values: AnyObject) -> (String, Array<(URITemplateError, Int)>) {
         // TODO: Use class variable
         struct ClassVariable {
             static let BehaviorTable = [
@@ -57,6 +63,7 @@ class URITemplate {
                 "#"  : Behavior(first: "#", sep: ",", named: false, ifemp: "",  allow: .UR),
             ]
             static let HEXDIG = "0123456789abcdefABCDEF"
+            static let DIGIT = "0123456789"
             static let RESERVED = ":/?#[]@!$&'()*+,;="
             static let UNRESERVED = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~" // 66
             static let VARCHAR = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" // exclude pct-encoded
@@ -64,6 +71,7 @@ class URITemplate {
 
         let BehaviorTable = ClassVariable.BehaviorTable
         let HEXDIG = ClassVariable.HEXDIG
+        let DIGIT = ClassVariable.DIGIT
         let RESERVED = ClassVariable.RESERVED
         let UNRESERVED = ClassVariable.UNRESERVED
         let VARCHAR = ClassVariable.VARCHAR
@@ -78,7 +86,7 @@ class URITemplate {
             var str = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
                             String(character).bridgeToObjectiveC(), nil, nil,
                             CFStringBuiltInEncodings.UTF8.toRaw())
-            return str
+            return String(str)
         }
 
         func appendLiteralString(string: String, toString: String) -> String {
@@ -125,7 +133,7 @@ class URITemplate {
                 }
 
                 if !BehaviorTable[String(operator!)] {
-                    return (nil, URITemplateError.InvalidOperator)
+                    return (nil, nil)
                 }
             }
 
@@ -142,7 +150,7 @@ class URITemplate {
         for (index, c) in enumerate(template) {
             switch state {
             case .ScanningLiteral:
-                if c == "(" {
+                if c == "{" {
                     state = .ScanningExpression
                     ++expressionCount
 
@@ -191,12 +199,97 @@ class URITemplate {
                 }
 
             case .ScanningExpression:
-                if c == ")" {
+                if c == "}" {
                     state = .ScanningLiteral
                     // Process expression
-                    // ...
-                    var operator: String? = nil
+                    let (operator, error) = findOperatorInExpression(expression)
+                    if error {
+                        syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
+                        result = result + "{" + expression + "}"
 
+                    } else {
+                        var operatorString = operator ? String(operator!) : "NUL"
+                        var behavior = BehaviorTable[operatorString];
+                        // Skip the operator
+                        var skipCount = 0
+                        if operator {
+                            if expression[expression.startIndex] == "%" {
+                                skipCount = 3
+                            } else {
+                                skipCount = 1
+                            }
+                        }
+                        // Process varspec-list
+                        var eError: URITemplateError? = nil
+                        var estate = ExpressionState.ScanningVarName
+                        var varName = ""
+                        var modifier: Character?
+                        var prefixLength :Int32 = 0
+                        var str = expression[advance(expression.startIndex, skipCount)..<expression.endIndex]
+                        str = str.stringByReplacingPercentEscapesUsingEncoding(NSUTF8StringEncoding)
+                        var jIndex = 0
+                        for (jIndex, j) in enumerate(str) {
+                            if (estate == .ScanningVarName) {
+                                if (j == "*" || j == ":") {
+                                    if countElements(varName) == 0 {
+                                        eError = .MalformedVarSpec
+                                        break;
+                                    }
+                                    modifier = j
+                                    estate = .ScanningModifier
+                                }
+                                if find(VARCHAR, j) || j == "." {
+                                    varName += j
+                                } else {
+                                    eError = .MalformedVarSpec
+                                    break;
+                                }
+
+                            } else if (estate == .ScanningModifier) {
+                                if j == "," {
+                                    // Process VarSpec
+                                    // ...
+
+                                    // Reset for next VarSpec
+                                    eError = nil
+                                    estate = .ScanningVarName
+                                    varName = ""
+                                    modifier = nil
+                                    prefixLength = 0
+
+                                } else {
+                                    if modifier == "*" {
+                                        eError = .MalformedVarSpec
+                                        break;
+                                    } else if modifier == ":" {
+                                        if find(DIGIT, j) {
+                                            prefixLength = prefixLength * 10 + String(j).bridgeToObjectiveC().intValue
+                                            if prefixLength >= 1000 {
+                                                eError = .MalformedVarSpec
+                                                break;
+                                            }
+
+                                        } else {
+                                            eError = .MalformedVarSpec
+                                            break;
+                                        }
+                                    } else {
+                                        assert(false);
+                                    }
+                                }
+
+                            } else {
+                                assert(false)
+                            }
+                        }
+
+                        if eError {
+                            syntaxErrors += (eError!, index + jIndex)
+                            result = result + "{" + expression + "}"
+                        } else {
+                            // Process VarSpec
+                        }
+                    } // varspec-list
 
                 } else {
                     expression += c;
@@ -217,7 +310,7 @@ class URITemplate {
 
         } else if (state == .ScanningExpression) {
             syntaxErrors += (URITemplateError.ExpressionEndedWithoutClosing, endingIndex)
-            result = result + "(" + expression
+            result = result + "{" + expression
 
         } else {
             assert(false);
@@ -226,7 +319,7 @@ class URITemplate {
             syntaxErrors += (URITemplateError.NonExpressionFound, endingIndex)
         }
 
-        return result
+        return (result, syntaxErrors)
     } // process
 
 } // URITemplate
