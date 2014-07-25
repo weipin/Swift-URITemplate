@@ -8,11 +8,6 @@
 
 import Foundation
 
-//var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
-//    str.bridgeToObjectiveC(), nil,
-//    "!*'();:@&=+$,/?%#[]",
-//    CFStringBuiltInEncodings.UTF8.toRaw())
-
 enum URITemplateError {
     case MalformedPctEncodedInLiteral
     case NonLiteralsCharacterFoundInLiteral
@@ -36,9 +31,8 @@ class URITemplate {
     }
 
     enum BehaviorAllow {
-        case U
-        case R
-        case UR
+        case U // any character not in the unreserved set will be encoded
+        case UR // any character not in the union of (unreserved / reserved / pct-encoding) will be encoded
     }
 
     struct Behavior {
@@ -77,10 +71,9 @@ class URITemplate {
         let VARCHAR = ClassVariable.VARCHAR
 
         // Pct-encoded isn't taken into account
-        func appendLiteralCharacter(character: Character, toString: String) -> String {
+        func encodeLiteralCharacter(character: Character) -> String {
             if find(RESERVED, character) || find(UNRESERVED, character) {
-                var str = toString + character
-                return str
+                return String(character)
             }
 
             var str = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
@@ -89,12 +82,38 @@ class URITemplate {
             return String(str)
         }
 
-        func appendLiteralString(string: String, toString: String) -> String {
-            var result = toString
-            for c in string {
-                result = appendLiteralCharacter(c, result)
-            }
+        func encodeLiteralString(string: String) -> String {
+            var charactersToLeaveUnescaped = RESERVED + UNRESERVED
+            var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
+                charactersToLeaveUnescaped.bridgeToObjectiveC(), nil, nil, CFStringBuiltInEncodings.UTF8.toRaw())
+            var result = String(s)
             return result
+        }
+
+        func encodeStringWithBehaviorAllowSet(string: String, allow: BehaviorAllow) -> String {
+            var result = ""
+
+            if allow == .U {
+                var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
+                    UNRESERVED.bridgeToObjectiveC(), nil, nil, CFStringBuiltInEncodings.UTF8.toRaw())
+                result = String(s)
+
+            } else if allow == .UR {
+                result = encodeLiteralString(string)
+            } else {
+                assert(false)
+            }
+
+            return result
+        }
+
+
+        func stringOfAnyObject(object: AnyObject) -> String? {
+            var str: String? = object as? String
+            if !str {
+                str = object.stringValue
+            }
+            return str
         }
 
         func findOperatorInExpression(expression: String) -> (operator: Character?, error: URITemplateError?) {
@@ -140,6 +159,151 @@ class URITemplate {
             return (operator, error)
         }
 
+        func expandVarSpec(varName: String, modifier: Character?, prefixLength :Int,
+        behavior: Behavior, values: AnyObject) -> String {
+            var result = ""
+
+            if varName == "" {
+                return result
+            }
+
+            var value: AnyObject?
+            if let d = values as? Dictionary<String, AnyObject> {
+                value = d[varName]
+            } else if let d = values as? NSDictionary {
+                value = d.objectForKey(varName)
+            } else {
+                value = values.objectForKey?(varName)
+            }
+
+            if let str = stringOfAnyObject(value!) {
+                if behavior.named {
+                    result += encodeLiteralString(varName)
+                    if str == "" {
+                        result += behavior.ifemp
+                        return result
+                    } else {
+                        result += "="
+                    }
+                }
+                if modifier == ":" && prefixLength < countElements(str) {
+                    var prefix = str[str.startIndex ..< advance(str.startIndex, prefixLength)]
+                    result += encodeStringWithBehaviorAllowSet(prefix, behavior.allow)
+
+                } else {
+                    result += encodeStringWithBehaviorAllowSet(str, behavior.allow)
+                }
+
+            } else {
+                if modifier == "*" {
+                    if behavior.named {
+                        if let ary = value as? [AnyObject] {
+                            var count = 0
+                            for v in ary {
+                                var str = stringOfAnyObject(v)
+                                if !str {
+                                    continue
+                                }
+                                if count > 0 {
+                                    result += behavior.sep
+                                }
+                                result += encodeLiteralString(varName)
+                                if str! == "" {
+                                    result += behavior.ifemp
+                                } else {
+                                    result += "="
+                                    result += encodeStringWithBehaviorAllowSet(str!, behavior.allow)
+
+                                }
+                                ++count
+                            }
+
+
+                        } else if let dict = value as? Dictionary<String, AnyObject> {
+                            var keys = Array(dict.keys)
+                            keys = sorted(keys) {(s1: String, s2: String) -> Bool in
+                                return s1.localizedCaseInsensitiveCompare(s2) == NSComparisonResult.OrderedAscending
+                            }
+
+                            var count = 0
+                            for k in keys {
+                                var str: String? = nil
+                                if let v: AnyObject = dict[k] {
+                                    str = stringOfAnyObject(v)
+                                }
+                                if !str {
+                                    continue
+                                }
+                                if count > 0 {
+                                    result += behavior.sep
+                                }
+                                result += encodeLiteralString(k)
+                                if str == "" {
+                                    result += behavior.ifemp
+                                } else {
+                                    result += "="
+                                    result += encodeStringWithBehaviorAllowSet(str!, behavior.allow)
+                                }
+                                ++count
+                            }
+
+                        } else {
+                            NSLog("Value for varName %@ is not a list or a pair", varName);
+                        }
+
+                    // end named
+                    } else {
+                        if let ary = value as? [AnyObject] {
+                            var count = 0
+                            for v in ary {
+                                var str = stringOfAnyObject(v)
+                                if !str {
+                                    continue
+                                }
+                                if count > 0 {
+                                    result += ","
+                                }
+                                result += encodeStringWithBehaviorAllowSet(str!, behavior.allow)
+                                ++count
+                            }
+
+                        } else if let dict = value as? Dictionary<String, AnyObject> {
+                            var keys = Array(dict.keys)
+                            keys = sorted(keys) {(s1: String, s2: String) -> Bool in
+                                return s1.localizedCaseInsensitiveCompare(s2) == NSComparisonResult.OrderedAscending
+                            }
+
+                            var count = 0
+                            for k in keys {
+                                var str: String? = nil
+                                if let v: AnyObject = dict[k] {
+                                    str = stringOfAnyObject(v)
+                                }
+                                if !str {
+                                    continue
+                                }
+                                if count > 0 {
+                                    result += ","
+                                }
+                                result += encodeLiteralString(k)
+                                result += "="
+                                result += encodeStringWithBehaviorAllowSet(str!, behavior.allow)
+                                ++count
+                            }
+
+                        } else {
+                            NSLog("Value for varName %@ is not a list or a pair", varName);
+                        }
+                    // end !named
+                    }
+                } else {
+
+                }
+
+            }
+            return result
+        }
+
         var state: State = .ScanningLiteral
         var result = ""
         var pctEncoded = ""
@@ -161,8 +325,8 @@ class URITemplate {
                             pctEncoded += c
                         } else {
                             syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
-                            result = appendLiteralString(pctEncoded, result)
-                            result = appendLiteralCharacter(c, result)
+                            result += encodeLiteralString(pctEncoded)
+                            result += encodeLiteralCharacter(c)
                             state = .ScanningLiteral
                             pctEncoded = ""
                         }
@@ -176,8 +340,8 @@ class URITemplate {
 
                         } else {
                             syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
-                            result = appendLiteralString(pctEncoded, result)
-                            result = appendLiteralCharacter(c, result)
+                            result += encodeLiteralString(pctEncoded)
+                            result += encodeLiteralCharacter(c)
                             state = .ScanningLiteral
                             pctEncoded = ""
                         }
@@ -209,7 +373,7 @@ class URITemplate {
 
                     } else {
                         var operatorString = operator ? String(operator!) : "NUL"
-                        var behavior = BehaviorTable[operatorString];
+                        var behavior = BehaviorTable[operatorString]!;
                         // Skip the operator
                         var skipCount = 0
                         if operator {
@@ -220,11 +384,12 @@ class URITemplate {
                             }
                         }
                         // Process varspec-list
+                        var varCount = 0
                         var eError: URITemplateError? = nil
                         var estate = ExpressionState.ScanningVarName
                         var varName = ""
                         var modifier: Character?
-                        var prefixLength :Int32 = 0
+                        var prefixLength :Int = 0
                         var str = expression[advance(expression.startIndex, skipCount)..<expression.endIndex]
                         str = str.stringByReplacingPercentEscapesUsingEncoding(NSUTF8StringEncoding)
                         var jIndex = 0
@@ -248,7 +413,14 @@ class URITemplate {
                             } else if (estate == .ScanningModifier) {
                                 if j == "," {
                                     // Process VarSpec
-                                    // ...
+                                    if varCount == 0 {
+                                        result += behavior.first
+                                    } else {
+                                        result += behavior.sep
+                                    }
+                                    var expanded = expandVarSpec(varName, modifier, prefixLength, behavior, values)
+                                    result += expanded
+                                    ++varCount
 
                                     // Reset for next VarSpec
                                     eError = nil
@@ -263,7 +435,7 @@ class URITemplate {
                                         break;
                                     } else if modifier == ":" {
                                         if find(DIGIT, j) {
-                                            prefixLength = prefixLength * 10 + String(j).bridgeToObjectiveC().intValue
+                                            prefixLength = prefixLength * 10 + Int(String(j).bridgeToObjectiveC().intValue)
                                             if prefixLength >= 1000 {
                                                 eError = .MalformedVarSpec
                                                 break;
@@ -281,13 +453,26 @@ class URITemplate {
                             } else {
                                 assert(false)
                             }
-                        }
+                        } // for expression
 
                         if eError {
                             syntaxErrors += (eError!, index + jIndex)
-                            result = result + "{" + expression + "}"
+                            let remainingExpression = str[advance(str.startIndex, jIndex)..<str.endIndex]
+                            if operator {
+                                result = result + "{" + operator! + remainingExpression + "}"
+                            } else {
+                                result = result + "{" + remainingExpression + "}"
+                            }
+
                         } else {
                             // Process VarSpec
+                            if varCount == 0 {
+                                result += behavior.first
+                            } else {
+                                result += behavior.sep
+                            }
+                            var expanded = expandVarSpec(varName, modifier, prefixLength, behavior, values)
+                            result += expanded
                         }
                     } // varspec-list
 
@@ -305,7 +490,7 @@ class URITemplate {
         if state == .ScanningLiteral {
             if countElements(pctEncoded) > 0 {
                 syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, endingIndex)
-                result = appendLiteralString(pctEncoded, result)
+                result += encodeLiteralString(pctEncoded)
             }
 
         } else if (state == .ScanningExpression) {
