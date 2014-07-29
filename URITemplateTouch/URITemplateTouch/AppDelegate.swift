@@ -16,6 +16,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(application: UIApplication!, didFinishLaunchingWithOptions launchOptions: NSDictionary!) -> Bool {
         // Override point for customization after application launch.
+
+//        var (string, errors) = URITemplate.process("/~{username}/", values: ["username": "weipin"])
+//        println("\(string)");
+
+//        ["{var=default}", "value"],
+
+        var bundle = NSBundle.mainBundle()
+        var URL = bundle.URLForResource("URITemplateRFCTests", withExtension: "json")
+        var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
+        var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
+        var variables = dict.valueForKeyPath("Test Suite 1.variables")
+        var (string, errors) = URITemplate.process("{var=default}", values: variables)
+        println("\(string)");
+
         return true
     }
 

@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum URITemplateError {
+public enum URITemplateError {
     case MalformedPctEncodedInLiteral
     case NonLiteralsCharacterFoundInLiteral
     case ExpressionEndedWithoutClosing
@@ -19,7 +19,7 @@ enum URITemplateError {
 
 let URITemplateSyntaxErrorsKey = "SyntaxErrors"
 
-class URITemplate {
+public class URITemplate {
     enum State {
         case ScanningLiteral
         case ScanningExpression
@@ -43,7 +43,7 @@ class URITemplate {
         var allow: BehaviorAllow
     }
 
-    class func process(template: String, values: AnyObject) -> (String, Array<(URITemplateError, Int)>) {
+    public class func process(template: String, values: AnyObject) -> (String, Array<(URITemplateError, Int)>) {
         // TODO: Use class variable
         struct ClassVariable {
             static let BehaviorTable = [
@@ -70,24 +70,18 @@ class URITemplate {
         let UNRESERVED = ClassVariable.UNRESERVED
         let VARCHAR = ClassVariable.VARCHAR
 
-        // Pct-encoded isn't taken into account
-        func encodeLiteralCharacter(character: Character) -> String {
-            if find(RESERVED, character) || find(UNRESERVED, character) {
-                return String(character)
-            }
-
-            var str = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
-                            String(character).bridgeToObjectiveC(), nil, nil,
-                            CFStringBuiltInEncodings.UTF8.toRaw())
-            return String(str)
-        }
-
+        // Pct-encoded ignored
         func encodeLiteralString(string: String) -> String {
             var charactersToLeaveUnescaped = RESERVED + UNRESERVED
             var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
-                charactersToLeaveUnescaped.bridgeToObjectiveC(), nil, nil, CFStringBuiltInEncodings.UTF8.toRaw())
+                string.bridgeToObjectiveC(), charactersToLeaveUnescaped.bridgeToObjectiveC(),
+                nil, CFStringBuiltInEncodings.UTF8.toRaw())
             var result = String(s)
             return result
+        }
+
+        func encodeLiteralCharacter(character: Character) -> String {
+            return encodeLiteralString(String(character))
         }
 
         func encodeStringWithBehaviorAllowSet(string: String, allow: BehaviorAllow) -> String {
@@ -95,7 +89,8 @@ class URITemplate {
 
             if allow == .U {
                 var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
-                    UNRESERVED.bridgeToObjectiveC(), nil, nil, CFStringBuiltInEncodings.UTF8.toRaw())
+                    string.bridgeToObjectiveC(), UNRESERVED.bridgeToObjectiveC(), nil,
+                    CFStringBuiltInEncodings.UTF8.toRaw())
                 result = String(s)
 
             } else if allow == .UR {
@@ -108,10 +103,14 @@ class URITemplate {
         }
 
 
-        func stringOfAnyObject(object: AnyObject) -> String? {
+        func stringOfAnyObject(object: AnyObject?) -> String? {
+            if !object {
+                return ""
+            }
+
             var str: String? = object as? String
             if !str {
-                str = object.stringValue
+                str = object!.stringValue
             }
             return str
         }
@@ -176,7 +175,7 @@ class URITemplate {
                 value = values.objectForKey?(varName)
             }
 
-            if let str = stringOfAnyObject(value!) {
+            if let str = stringOfAnyObject(value) {
                 if behavior.named {
                     result += encodeLiteralString(varName)
                     if str == "" {

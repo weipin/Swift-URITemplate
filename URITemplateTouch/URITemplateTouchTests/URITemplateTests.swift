@@ -9,6 +9,10 @@
 import UIKit
 import XCTest
 
+import URITemplateTouch
+
+let TestBundleIdentifier = "com.cocoahope.URITemplateTests"
+
 class URITemplateTests: XCTestCase {
     
     override func setUp() {
@@ -32,5 +36,21 @@ class URITemplateTests: XCTestCase {
             // Put the code you want to measure the time of here.
         }
     }
-    
+
+    func testURLTemplate() {
+        var bundle = NSBundle(identifier: TestBundleIdentifier)
+        var URL = bundle.URLForResource("URITemplateRFCTests", withExtension: "json")
+        var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
+        var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
+        for (testSuiteName, value) in dict {
+            var variables = value["variables"]
+            var testcases = value["testcases"] as [AnyObject]
+            for testcase in testcases {
+                var template = testcase[0] as String
+                var result = testcase[1] as String
+                var (string, errors) = URITemplate.process(template, values: variables)
+                XCTAssertEqual(string, result, "SUITE: \(testSuiteName), TEMPLATE: \(template)")
+            }
+        }
+    }
 }
