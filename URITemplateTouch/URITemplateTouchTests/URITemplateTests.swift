@@ -43,7 +43,7 @@ class URITemplateTests: XCTestCase {
         var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
         var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
         for (testSuiteName, value) in dict {
-            var variables = value["variables"]
+            var variables = value["values"]
             var testcases = value["testcases"] as [AnyObject]
             for testcase in testcases {
                 var template = testcase[0] as String

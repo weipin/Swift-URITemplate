@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		167B6B8C1987F12100A84C0C /* URITemplateRFCTests.json in Resources */ = {isa = PBXBuildFile; fileRef = 167B6B8B1987F12100A84C0C /* URITemplateRFCTests.json */; };
+		167B6B911988028F00A84C0C /* URITemplateRFCTests.json in Resources */ = {isa = PBXBuildFile; fileRef = 167B6B8B1987F12100A84C0C /* URITemplateRFCTests.json */; };
 		169E7254197C03A50097CD17 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 169E7253197C03A50097CD17 /* AppDelegate.swift */; };
 		169E7256197C03A50097CD17 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 169E7255197C03A50097CD17 /* ViewController.swift */; };
 		169E7259197C03A50097CD17 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 169E7257197C03A50097CD17 /* Main.storyboard */; };
@@ -18,6 +19,13 @@
 
 /* Begin PBXContainerItemProxy section */
 		167B6B8D1987F2F900A84C0C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 169E7246197C03A50097CD17 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 169E724D197C03A50097CD17;
+			remoteInfo = URITemplateTouch;
+		};
+		167B6B8F1987F2F900A84C0C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 169E7246197C03A50097CD17 /* Project object */;
 			proxyType = 1;
@@ -155,6 +163,7 @@
 			dependencies = (
 				169E7262197C03A50097CD17 /* PBXTargetDependency */,
 				167B6B8E1987F2F900A84C0C /* PBXTargetDependency */,
+				167B6B901987F2F900A84C0C /* PBXTargetDependency */,
 			);
 			name = URITemplateTouchTests;
 			productName = URITemplateTouchTests;
@@ -204,6 +213,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				169E7259197C03A50097CD17 /* Main.storyboard in Resources */,
+				167B6B911988028F00A84C0C /* URITemplateRFCTests.json in Resources */,
 				169E725B197C03A50097CD17 /* Images.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -244,6 +254,11 @@
 			isa = PBXTargetDependency;
 			target = 169E724D197C03A50097CD17 /* URITemplateTouch */;
 			targetProxy = 167B6B8D1987F2F900A84C0C /* PBXContainerItemProxy */;
+		};
+		167B6B901987F2F900A84C0C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 169E724D197C03A50097CD17 /* URITemplateTouch */;
+			targetProxy = 167B6B8F1987F2F900A84C0C /* PBXContainerItemProxy */;
 		};
 		169E7262197C03A50097CD17 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
