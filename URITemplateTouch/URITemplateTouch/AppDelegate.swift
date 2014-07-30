@@ -27,7 +27,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
         var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
         var variables = dict.valueForKeyPath("suite1.values")
-        var (string, errors) = URITemplate.process("{var=default}", values: variables)
+        var (string, errors) = URITemplate.process("{hello}", values: variables)
         println("\(string)");
 
         return true

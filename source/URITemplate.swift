@@ -56,6 +56,8 @@ public class URITemplate {
                 "&"  : Behavior(first: "&", sep: "&", named: true,  ifemp: "=", allow: .U),
                 "#"  : Behavior(first: "#", sep: ",", named: false, ifemp: "",  allow: .UR),
             ]
+
+            static let LEGAL = "!*'();:@&=+$,/?%#[]" // Legal URL characters (based on RFC 3986)
             static let HEXDIG = "0123456789abcdefABCDEF"
             static let DIGIT = "0123456789"
             static let RESERVED = ":/?#[]@!$&'()*+,;="
@@ -64,6 +66,7 @@ public class URITemplate {
         }
 
         let BehaviorTable = ClassVariable.BehaviorTable
+        let LEGAL = ClassVariable.LEGAL
         let HEXDIG = ClassVariable.HEXDIG
         let DIGIT = ClassVariable.DIGIT
         let RESERVED = ClassVariable.RESERVED
@@ -75,7 +78,8 @@ public class URITemplate {
             var charactersToLeaveUnescaped = RESERVED + UNRESERVED
             var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
                 string.bridgeToObjectiveC(), charactersToLeaveUnescaped.bridgeToObjectiveC(),
-                nil, CFStringBuiltInEncodings.UTF8.toRaw())
+                LEGAL.bridgeToObjectiveC(),
+                CFStringBuiltInEncodings.UTF8.toRaw())
             var result = String(s)
             return result
         }
@@ -89,7 +93,8 @@ public class URITemplate {
 
             if allow == .U {
                 var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
-                    string.bridgeToObjectiveC(), UNRESERVED.bridgeToObjectiveC(), nil,
+                    string.bridgeToObjectiveC(), UNRESERVED.bridgeToObjectiveC(),
+                    LEGAL.bridgeToObjectiveC(),
                     CFStringBuiltInEncodings.UTF8.toRaw())
                 result = String(s)
 
