@@ -78,7 +78,7 @@ public class URITemplate {
             var charactersToLeaveUnescaped = RESERVED + UNRESERVED
             var s = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
                 string.bridgeToObjectiveC(), charactersToLeaveUnescaped.bridgeToObjectiveC(),
-                LEGAL.bridgeToObjectiveC(),
+                nil,
                 CFStringBuiltInEncodings.UTF8.toRaw())
             var result = String(s)
             return result
@@ -151,12 +151,12 @@ public class URITemplate {
             }
 
             if operator {
-                if !find(VARCHAR, operator!) {
-                    return (nil, URITemplateError.InvalidOperator)
-                }
-
-                if !BehaviorTable[String(operator!)] {
-                    return (nil, nil)
+                if (!BehaviorTable[String(operator!)]) {
+                    if (!find(VARCHAR, operator!)) {
+                        return (nil, URITemplateError.InvalidOperator)
+                    } else {
+                        return (nil, nil)
+                    }
                 }
             }
 
@@ -398,6 +398,27 @@ public class URITemplate {
                         str = str.stringByReplacingPercentEscapesUsingEncoding(NSUTF8StringEncoding)
                         var jIndex = 0
                         for (jIndex, j) in enumerate(str) {
+                            if j == "," {
+                                // Process VarSpec
+                                if varCount == 0 {
+                                    result += behavior.first
+                                } else {
+                                    result += behavior.sep
+                                }
+                                var expanded = expandVarSpec(varName, modifier, prefixLength, behavior, values)
+                                result += expanded
+                                ++varCount
+
+                                // Reset for next VarSpec
+                                eError = nil
+                                estate = .ScanningVarName
+                                varName = ""
+                                modifier = nil
+                                prefixLength = 0
+                                
+                                continue
+                            }
+
                             if (estate == .ScanningVarName) {
                                 if (j == "*" || j == ":") {
                                     if countElements(varName) == 0 {
@@ -415,43 +436,23 @@ public class URITemplate {
                                 }
 
                             } else if (estate == .ScanningModifier) {
-                                if j == "," {
-                                    // Process VarSpec
-                                    if varCount == 0 {
-                                        result += behavior.first
-                                    } else {
-                                        result += behavior.sep
-                                    }
-                                    var expanded = expandVarSpec(varName, modifier, prefixLength, behavior, values)
-                                    result += expanded
-                                    ++varCount
-
-                                    // Reset for next VarSpec
-                                    eError = nil
-                                    estate = .ScanningVarName
-                                    varName = ""
-                                    modifier = nil
-                                    prefixLength = 0
-
-                                } else {
-                                    if modifier == "*" {
-                                        eError = .MalformedVarSpec
-                                        break;
-                                    } else if modifier == ":" {
-                                        if find(DIGIT, j) {
-                                            prefixLength = prefixLength * 10 + Int(String(j).bridgeToObjectiveC().intValue)
-                                            if prefixLength >= 1000 {
-                                                eError = .MalformedVarSpec
-                                                break;
-                                            }
-
-                                        } else {
+                                if modifier == "*" {
+                                    eError = .MalformedVarSpec
+                                    break;
+                                } else if modifier == ":" {
+                                    if find(DIGIT, j) {
+                                        prefixLength = prefixLength * 10 + Int(String(j).bridgeToObjectiveC().intValue)
+                                        if prefixLength >= 1000 {
                                             eError = .MalformedVarSpec
                                             break;
                                         }
+
                                     } else {
-                                        assert(false);
+                                        eError = .MalformedVarSpec
+                                        break;
                                     }
+                                } else {
+                                    assert(false);
                                 }
 
                             } else {

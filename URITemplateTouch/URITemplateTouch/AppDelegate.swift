@@ -26,8 +26,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var URL = bundle.URLForResource("URITemplateRFCTests", withExtension: "json")
         var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
         var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
-        var variables = dict.valueForKeyPath("suite1.values")
-        var (string, errors) = URITemplate.process("{hello}", values: variables)
+        var variables = dict.valueForKeyPath("suite4.values")
+        var (string, errors) = URITemplate.process("{var:3}", values: variables)
         println("\(string)");
 
         return true
