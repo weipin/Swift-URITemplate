@@ -226,7 +226,7 @@ public class URITemplate {
                         } else if let dict = value as? Dictionary<String, AnyObject> {
                             var keys = Array(dict.keys)
                             keys = sorted(keys) {(s1: String, s2: String) -> Bool in
-                                return s1.localizedCaseInsensitiveCompare(s2) == NSComparisonResult.OrderedAscending
+                                return s1.localizedCaseInsensitiveCompare(s2) == NSComparisonResult.OrderedDescending
                             }
 
                             var count = 0
@@ -255,7 +255,6 @@ public class URITemplate {
                             NSLog("Value for varName %@ is not a list or a pair", varName);
                         }
 
-                    // end named
                     } else {
                         if let ary = value as? [AnyObject] {
                             var count = 0
@@ -265,7 +264,7 @@ public class URITemplate {
                                     continue
                                 }
                                 if count > 0 {
-                                    result += ","
+                                    result += behavior.sep
                                 }
                                 result += encodeStringWithBehaviorAllowSet(str!, behavior.allow)
                                 ++count
@@ -274,7 +273,7 @@ public class URITemplate {
                         } else if let dict = value as? Dictionary<String, AnyObject> {
                             var keys = Array(dict.keys)
                             keys = sorted(keys) {(s1: String, s2: String) -> Bool in
-                                return s1.localizedCaseInsensitiveCompare(s2) == NSComparisonResult.OrderedAscending
+                                return s1.localizedCaseInsensitiveCompare(s2) == NSComparisonResult.OrderedDescending
                             }
 
                             var count = 0
@@ -287,7 +286,7 @@ public class URITemplate {
                                     continue
                                 }
                                 if count > 0 {
-                                    result += ","
+                                    result += behavior.sep
                                 }
                                 result += encodeLiteralString(k)
                                 result += "="
@@ -298,11 +297,68 @@ public class URITemplate {
                         } else {
                             NSLog("Value for varName %@ is not a list or a pair", varName);
                         }
-                    // end !named
-                    }
-                } else {
+                    } // if behavior.named
 
-                }
+                } else {
+                    // no explode modifier is given
+                    var flag = true
+                    if behavior.named {
+                        result += encodeLiteralString(varName)
+                        if !value {
+                            result += behavior.ifemp
+                            flag = false
+                        } else {
+                            result += "="
+                        }
+
+                        if flag {
+
+                        }
+                    } // if behavior.named
+
+                    if let ary = value as? [AnyObject] {
+                        var count = 0
+                        for v in ary {
+                            var str = stringOfAnyObject(v)
+                            if !str {
+                                continue
+                            }
+                            if count > 0 {
+                                result += ","
+                            }
+                            result += encodeStringWithBehaviorAllowSet(str!, behavior.allow)
+                            ++count
+                        }
+
+                    } else if let dict = value as? Dictionary<String, AnyObject> {
+                        var keys = Array(dict.keys)
+                        keys = sorted(keys) {(s1: String, s2: String) -> Bool in
+                            return s1.localizedCaseInsensitiveCompare(s2) == NSComparisonResult.OrderedDescending
+                        }
+
+                        var count = 0
+                        for k in keys {
+                            var str: String? = nil
+                            if let v: AnyObject = dict[k] {
+                                str = stringOfAnyObject(v)
+                            }
+                            if !str {
+                                continue
+                            }
+                            if count > 0 {
+                                result += ","
+                            }
+                            result += encodeStringWithBehaviorAllowSet(k, behavior.allow)
+                            result += ","
+                            result += encodeStringWithBehaviorAllowSet(str!, behavior.allow)
+                            ++count
+                        }
+
+                    } else {
+
+                    }
+                    
+                } // if modifier == "*"
 
             }
             return result
@@ -427,6 +483,7 @@ public class URITemplate {
                                     }
                                     modifier = j
                                     estate = .ScanningModifier
+                                    continue
                                 }
                                 if find(VARCHAR, j) || j == "." {
                                     varName += j

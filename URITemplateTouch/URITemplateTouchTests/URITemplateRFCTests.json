@@ -126,5 +126,17 @@
                       ["{&keys}", "&keys=semi,%3B,dot,.,comma,%2C"],
                       ["{&keys*}", "&semi=%3B&dot=.&comma=%2C"]
                       ]
+    },
+
+    "suite5":
+    {
+        "values": {
+            "x"     : 1024,
+            "y"     : 768
+        },
+        "testcases": [
+                      ["map?{x,y}", "map?1024,768"],
+                      ]
     }
+
 }

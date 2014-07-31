@@ -22,13 +22,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 //        ["{var=default}", "value"],
 
-        var bundle = NSBundle.mainBundle()
-        var URL = bundle.URLForResource("URITemplateRFCTests", withExtension: "json")
-        var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
-        var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
-        var variables = dict.valueForKeyPath("suite4.values")
-        var (string, errors) = URITemplate.process("{var:3}", values: variables)
-        println("\(string)");
+//        var bundle = NSBundle.mainBundle()
+//        var URL = bundle.URLForResource("URITemplateRFCTests", withExtension: "json")
+//        var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
+//        var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
+//        var variables = dict.valueForKeyPath("suite4.values")
+//        var (string, errors) = URITemplate.process("X{.keys*}", values: variables)
+//        println("\(string)");
 
         return true
     }
