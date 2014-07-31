@@ -145,14 +145,18 @@ public class URITemplate {
 
         func stringOfAnyObject(object: AnyObject?) -> String? {
             if !object {
-                return ""
+                return nil
             }
 
-            var str: String? = object as? String
-            if !str {
-                str = object!.stringValue
+            if let str = object as? String {
+                return str
             }
-            return str
+
+            if let str = object?.stringValue {
+                return str
+            }
+
+            return nil
         }
 
         func findOperatorInExpression(expression: String) -> (operator: Character?, error: URITemplateError?) {
