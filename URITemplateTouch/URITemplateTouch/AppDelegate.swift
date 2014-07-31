@@ -30,6 +30,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 //        var (string, errors) = URITemplate.process("X{.keys*}", values: variables)
 //        println("\(string)");
 
+//        var URLString = ExpandURITemplate("http://www.example.com/foo{?query,number}",
+//                                          ["query": "mycelium", "number": "100"])
+//        println("\(URLString)") // http://www.example.com/foo?query=mycelium&number=100
+
+//        var URLString = ExpandURITemplate("http://www.example.com/foo{?query,number}",
+//                                          NSDictionary(objects: ["mycelium", 100], forKeys: ["query", "number"]))
+//        println("\(URLString)") // http://www.example.com/foo?query=mycelium&number=100
+
         return true
     }
 

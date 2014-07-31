@@ -58,6 +58,26 @@ public class URITemplate {
         var allow: BehaviorAllow
     }
 
+/*!
+ * @abstract 
+ * Expand a URITemplate
+ *
+ * @param template
+ * The URITemplate to expand
+ *
+ * @param values
+ * The object to provide values when the method expands the URITemplate. 
+ * It can be a Swift Dictionary, a NSDictionary, a NSDictionary subclass or any 
+ * object has method `objectForKey`.
+ * 
+ * @result (result, errors)
+ * result
+ * The expanded URITemplate
+ * errors
+ * An array of tuple (URITemplateError, Int) which represents the errors this method 
+ * recorded in expanding the URITemplate. The first element indicates the type of 
+ * error, the second element indicates the position (index) of the error in the URITemplate.
+ */
     public class func process(template: String, values: AnyObject) -> (String, Array<(URITemplateError, Int)>) {
         // TODO: Use class variable
         struct ClassVariable {
@@ -586,11 +606,26 @@ public class URITemplate {
 
 } // URITemplate
 
-
+/*!
+* @abstract
+* Expand a URITemplate
+*
+* @dicussion
+* This is a convenient version for the `process` method in class `URITemplate`
+*
+* @param template
+* The URITemplate to expand
+*
+* @param values
+* The object to provide values when the function expands the URITemplate.
+* It can be a Swift Dictionary, a NSDictionary, a NSDictionary subclass or any
+* object has method `objectForKey`.
+*
+* @result
+* The expanded URITemplate
+*/
 public func ExpandURITemplate(template: String, values: AnyObject) -> String {
     let (URLString, errors) = URITemplate.process(template, values: values);
     return URLString
 }
-
-
 
