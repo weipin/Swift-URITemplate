@@ -23,6 +23,33 @@
 
 import Foundation
 
+/*!
+* @abstract
+* Expand a URITemplate
+*
+* @dicussion
+* This is a convenient version of the `process` method in class `URITemplate`
+*
+* @param template
+* The URITemplate to expand
+*
+* @param values
+* The object to provide values when the function expands the URI Template.
+* It can be a Swift Dictionary, a NSDictionary, a NSDictionary subclass or any
+* object has method `objectForKey`.
+*
+* @result
+* The expanded URITemplate
+*/
+public func ExpandURITemplate(template: String, values: AnyObject? = nil) -> String {
+    var provider: AnyObject? = values
+    if !provider {
+        provider = Dictionary<String, AnyObject>()
+    }
+    let (URLString, errors) = URITemplate.process(template, values: provider!);
+    return URLString
+}
+
 public enum URITemplateError {
     case MalformedPctEncodedInLiteral
     case NonLiteralsCharacterFoundInLiteral
@@ -32,8 +59,11 @@ public enum URITemplateError {
     case MalformedVarSpec
 }
 
-let URITemplateSyntaxErrorsKey = "SyntaxErrors"
-
+/*!
+* @discussion
+* This class is an implementation of URI Template (RFC6570). You probably
+* wouldn't need to use this class but the convenient function ExpandURITemplate.
+*/
 public class URITemplate {
     enum State {
         case ScanningLiteral
@@ -79,7 +109,7 @@ public class URITemplate {
  * error, the second element indicates the position (index) of the error in the URITemplate.
  */
     public class func process(template: String, values: AnyObject) -> (String, Array<(URITemplateError, Int)>) {
-        // TODO: Use class variable
+        // FIXME: Use class variable
         struct ClassVariable {
             static let BehaviorTable = [
                 "NUL": Behavior(first: "",  sep: ",", named: false, ifemp: "",  allow: .U),
@@ -408,7 +438,7 @@ public class URITemplate {
         var pctEncoded = ""
         var expression = ""
         var expressionCount = 0
-        var syntaxErrors = Array<(URITemplateError, Int)>()
+        var errors = Array<(URITemplateError, Int)>()
 
         for (index, c) in enumerate(template) {
             switch state {
@@ -417,13 +447,13 @@ public class URITemplate {
                     state = .ScanningExpression
                     ++expressionCount
 
-                } else if (countElements(pctEncoded) > 0) {
+                } else if (!pctEncoded.isEmpty) {
                     switch countElements(pctEncoded) {
                     case 1:
                         if find(HEXDIG, c) {
                             pctEncoded += c
                         } else {
-                            syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
+                            errors += (URITemplateError.MalformedPctEncodedInLiteral, index)
                             result += encodeLiteralString(pctEncoded)
                             result += encodeLiteralCharacter(c)
                             state = .ScanningLiteral
@@ -438,7 +468,7 @@ public class URITemplate {
                             pctEncoded = ""
 
                         } else {
-                            syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
+                            errors += (URITemplateError.MalformedPctEncodedInLiteral, index)
                             result += encodeLiteralString(pctEncoded)
                             result += encodeLiteralCharacter(c)
                             state = .ScanningLiteral
@@ -457,7 +487,7 @@ public class URITemplate {
                     result += c
 
                 } else {
-                    syntaxErrors += (URITemplateError.NonLiteralsCharacterFoundInLiteral, index)
+                    errors += (URITemplateError.NonLiteralsCharacterFoundInLiteral, index)
                     result += c
                 }
 
@@ -467,7 +497,7 @@ public class URITemplate {
                     // Process expression
                     let (operator, error) = findOperatorInExpression(expression)
                     if error {
-                        syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, index)
+                        errors += (URITemplateError.MalformedPctEncodedInLiteral, index)
                         result = result + "{" + expression + "}"
 
                     } else {
@@ -476,7 +506,7 @@ public class URITemplate {
                         // Skip the operator
                         var skipCount = 0
                         if operator {
-                            if expression[expression.startIndex] == "%" {
+                            if expression.hasPrefix("%") {
                                 skipCount = 3
                             } else {
                                 skipCount = 1
@@ -516,7 +546,7 @@ public class URITemplate {
 
                             if (estate == .ScanningVarName) {
                                 if (j == "*" || j == ":") {
-                                    if countElements(varName) == 0 {
+                                    if varName.isEmpty {
                                         eError = .MalformedVarSpec
                                         break;
                                     }
@@ -557,7 +587,7 @@ public class URITemplate {
                         } // for expression
 
                         if eError {
-                            syntaxErrors += (eError!, index + jIndex)
+                            errors += (eError!, index + jIndex)
                             let remainingExpression = str[advance(str.startIndex, jIndex)..<str.endIndex]
                             if operator {
                                 result = result + "{" + operator! + remainingExpression + "}"
@@ -589,47 +619,24 @@ public class URITemplate {
         // Handle ending
         var endingIndex = countElements(template)
         if state == .ScanningLiteral {
-            if countElements(pctEncoded) > 0 {
-                syntaxErrors += (URITemplateError.MalformedPctEncodedInLiteral, endingIndex)
+            if !pctEncoded.isEmpty {
+                errors += (URITemplateError.MalformedPctEncodedInLiteral, endingIndex)
                 result += encodeLiteralString(pctEncoded)
             }
 
         } else if (state == .ScanningExpression) {
-            syntaxErrors += (URITemplateError.ExpressionEndedWithoutClosing, endingIndex)
+            errors += (URITemplateError.ExpressionEndedWithoutClosing, endingIndex)
             result = result + "{" + expression
 
         } else {
             assert(false);
         }
         if expressionCount == 0 {
-            syntaxErrors += (URITemplateError.NonExpressionFound, endingIndex)
+            errors += (URITemplateError.NonExpressionFound, endingIndex)
         }
 
-        return (result, syntaxErrors)
+        return (result, errors)
     } // process
 
 } // URITemplate
-
-/*!
-* @abstract
-* Expand a URITemplate
-*
-* @dicussion
-* This is a convenient version for the `process` method in class `URITemplate`
-*
-* @param template
-* The URITemplate to expand
-*
-* @param values
-* The object to provide values when the function expands the URITemplate.
-* It can be a Swift Dictionary, a NSDictionary, a NSDictionary subclass or any
-* object has method `objectForKey`.
-*
-* @result
-* The expanded URITemplate
-*/
-public func ExpandURITemplate(template: String, values: AnyObject) -> String {
-    let (URLString, errors) = URITemplate.process(template, values: values);
-    return URLString
-}
 
