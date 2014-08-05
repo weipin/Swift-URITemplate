@@ -1,7 +1,7 @@
 Swift-URITemplate
 ====
 
-** Xcode 6.0 Beta4 (6A267n) is REQUIRED **
+** Xcode 6.0 Beta5 (6A279r) REQUIRED **
 
 Swift-URITemplate is a Swift implementation of URI Template -- 
 [RFC6570](http://tools.ietf.org/html/rfc6570), can expand templates up to and 
