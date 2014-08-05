@@ -16,7 +16,7 @@ if you give Swift-URITemplate a string `http://www.example.com/foo{?query,number
 found in [RFC 6570](http://tools.ietf.org/html/rfc6570), or you can go check the 
 tests in [URITemplateRFCTests.json](https://github.com/weipin/Swift-URITemplate/blob/master/tests/URITemplateRFCTests.json).
 
-Swift-URITemplate was initially developed for HTTP library [Cycles](https://github.com/weipin/Cycles).
+Swift-URITemplate was initially developed for HTTP library [Cycles](http://www.swift-cycles.org).
 
 
 Installation
