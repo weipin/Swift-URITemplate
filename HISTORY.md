@@ -1,10 +1,10 @@
 Release History
 ===============
 
-0.1.1 (2014-08-05)
+0.1.2 (2014-08-21)
 ------------------
 
-- Refactor for Xcode 6.0 Beta5
+- Refactor for Xcode 6.0 Beta6
 
 
 0.1.1 (2014-08-05)
