@@ -28,6 +28,7 @@ import URITemplateTouch
 
 let TestBundleIdentifier = "com.cocoahope.URITemplateTests"
 
+
 class URITemplateTests: XCTestCase {
     
     override func setUp() {
@@ -43,7 +44,7 @@ class URITemplateTests: XCTestCase {
     func testURLTemplate() {
         var bundle = NSBundle(identifier: TestBundleIdentifier)
         var URL = bundle.URLForResource("URITemplateRFCTests", withExtension: "json")
-        var data = NSData.dataWithContentsOfURL(URL, options: NSDataReadingOptions(0), error: nil)
+        var data = NSData.dataWithContentsOfURL(URL!, options: NSDataReadingOptions(0), error: nil)
         var dict: NSDictionary! = NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments, error: nil) as NSDictionary
         for (testSuiteName, value) in dict {
             var variables = value["values"]
@@ -51,8 +52,8 @@ class URITemplateTests: XCTestCase {
             for testcase in testcases {
                 var template = testcase[0] as String
                 var result = testcase[1] as String
-                var (string, errors) = URITemplate.process(template, values: variables)
-                XCTAssertEqual(string, result, "SUITE: \(testSuiteName), TEMPLATE: \(template)")
+                var str = ExpandURITemplate(template, values: variables)
+                XCTAssertEqual(str, result, "SUITE: \(testSuiteName), TEMPLATE: \(template)")
             }
         }
     }
