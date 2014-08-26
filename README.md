@@ -7,11 +7,11 @@ Swift-URITemplate is a Swift implementation of URI Template --
 [RFC6570](http://tools.ietf.org/html/rfc6570), can expand templates up to and 
 including Level 4 in that specification.
 
-In case you are not familiar with URI Template, it's a utility which can be used 
+In case you are not familiar with URI Template, it's an utility which can be used 
 to expand a string with values, like what `printf` does, but for URL. For example, 
 if you give Swift-URITemplate a string `http://www.example.com/foo{?query,number}` 
 (the format part), and a dictionary `{"query": "mycelium", "number": 100}` 
-(the value part), Swift-URITemplate will return you a expanded URL 
+(the value part), Swift-URITemplate will return you an expanded URL 
 `http://www.example.com/foo?query=mycelium&number=100`. More information can be 
 found in [RFC 6570](http://tools.ietf.org/html/rfc6570), or you can go check the 
 tests in [URITemplateRFCTests.json](https://github.com/weipin/Swift-URITemplate/blob/master/tests/URITemplateRFCTests.json).
@@ -35,8 +35,8 @@ To expand an URI Template, you use function `ExpandURITemplate`:
 public func ExpandURITemplate(template: String, values: AnyObject) -> String
 ```
 
-The parameter `template` is the template to expand. The parameter `values` is an 
-object to provide values when the function expands the template. 
+The parameter `template` is the template to expand. The parameter `values` is the 
+object which provides values for expanding. 
 
 Values
 ----
@@ -57,13 +57,13 @@ var URLString = ExpandURITemplate("http://www.example.com/foo{?query,number}",
 println("\(URLString)") // http://www.example.com/foo?query=mycelium&number=100
 ```
 
-- Or any object has method `objectForKey`.
+- Or any object responses to the method `objectForKey`.
 
 
 Value types
 ----
 
-- The objects that `values` provide can be string:
+- The objects that `values` provides can be string:
 
 ```
 var URLString = ExpandURITemplate("http://www.example.com/foo{?query,number}",
@@ -71,7 +71,7 @@ var URLString = ExpandURITemplate("http://www.example.com/foo{?query,number}",
 println("\(URLString)") // http://www.example.com/foo?query=mycelium&number=100
 ```
 
-- Or number (the value of key `mycelium` in the following code snippet):
+- Or number (see the value of key `mycelium` in the code snippet below):
 
 ```
 var URLString = ExpandURITemplate("http://www.example.com/foo{?query,number}",
@@ -79,7 +79,7 @@ var URLString = ExpandURITemplate("http://www.example.com/foo{?query,number}",
 println("\(URLString)") // http://www.example.com/foo?query=mycelium&number=100
 ```
 
-- Or any object has method `stringValue`.
+- Or any object responses to the method `stringValue`.
 
 
 Support
