@@ -59,35 +59,36 @@ public enum URITemplateError {
     case MalformedVarSpec
 }
 
-enum State {
-    case ScanningLiteral
-    case ScanningExpression
-}
-
-enum ExpressionState {
-    case ScanningVarName
-    case ScanningModifier
-}
-
-enum BehaviorAllow {
-    case U // any character not in the unreserved set will be encoded
-    case UR // any character not in the union of (unreserved / reserved / pct-encoding) will be encoded
-}
-
-struct Behavior {
-    var first: String
-    var sep: String
-    var named: Bool
-    var ifemp: String
-    var allow: BehaviorAllow
-}
-
 /*!
 * @discussion
 * This class is an implementation of URI Template (RFC6570). You probably
 * wouldn't need to use this class but the convenient function ExpandURITemplate.
 */
 public class URITemplate {
+    
+    enum State {
+        case ScanningLiteral
+        case ScanningExpression
+    }
+    
+    enum ExpressionState {
+        case ScanningVarName
+        case ScanningModifier
+    }
+    
+    enum BehaviorAllow {
+        case U // any character not in the unreserved set will be encoded
+        case UR // any character not in the union of (unreserved / reserved / pct-encoding) will be encoded
+    }
+    
+    struct Behavior {
+        var first: String
+        var sep: String
+        var named: Bool
+        var ifemp: String
+        var allow: BehaviorAllow
+    }
+    
     // TODO: Use type variable
     struct ClassVariable {
         static let BehaviorTable = [
